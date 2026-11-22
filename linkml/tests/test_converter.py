@@ -124,6 +124,37 @@ def test_convert_to_spec_stops_at_the_dto(flights_linkml: str):
     assert spec.name == "Flights"
 
 
+@pytest.mark.parametrize("slot, cls, description", [
+    ("on", "Person", "A person"),
+    ("no", "Person", "A person"),
+    ("name", "Off", "A person"),
+    ("name", "Person", "yes"),
+    ("name", "Person", "2020-01-01"),
+])
+def test_names_that_yaml_1_1_reads_as_other_types_stay_strings(slot, cls, description):
+    # YAML 1.1 (PyYAML) reads unquoted `on`, `no`, `Off`, `yes` as booleans and
+    # `2020-01-01` as a date. ohi writes YAML 1.2, so they must not go through
+    # a YAML 1.1 reader on the way back.
+    schema_text = f"""
+id: https://example.org/s
+name: s
+prefixes:
+  linkml: https://w3id.org/linkml/
+imports: [linkml:types]
+default_range: string
+classes:
+  {cls}:
+    description: "{description}"
+    attributes:
+      {slot}:
+        range: string
+"""
+    ontology = LinkmlToOssieConverter().convert_text(schema_text).ontology
+    concept = ontology.lookup_concept(cls)
+    assert concept.description == description
+    assert ontology.lookup_concept_relationship(concept, slot) is not None
+
+
 def test_formulas_are_parsed_by_default(flights_linkml: str):
     # Downstream converters (e.g. RelationalAI) skip formulas that were not
     # parsed, so the default must parse them. `minimum_value` / `maximum_value`
