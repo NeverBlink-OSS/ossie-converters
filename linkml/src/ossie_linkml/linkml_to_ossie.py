@@ -26,6 +26,7 @@ Pairs with ossie_to_linkml.OssieToLinkmlConverter for the other direction."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Mapping
 
@@ -98,14 +99,17 @@ class LinkmlToOssieConverter:
         The shorter path when the caller only wants to write the Ossie document
         out rather than build the runtime model.
         """
-        return OssieSpec.load_yaml(
+        # Read as JSON, not YAML: ohi writes YAML 1.2, while PyYAML reads YAML
+        # 1.1, so unquoted names or descriptions such as `on`, `no` or
+        # `2020-01-01` would come back as booleans or dates.
+        return OssieSpec.model_validate(json.loads(
             schema.ossie(
                 pruning_mode=pruning_mode,
                 tree_root=tree_root,
-                format="yaml",
+                format="json",
                 metadata_language=metadata_language,
             )
-        )
+        ))
 
     def convert_file(self, path: str | Path, **options) -> OssieOntology:
         """Load a schema from disk — resolving its `imports` from disk too —
